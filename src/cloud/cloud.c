@@ -288,17 +288,18 @@ int cloud_publish(struct device_data *data)
         "Connection: close\r\n",
         NULL};
 
-    req.method = HTTP_POST;
+    // req.method = HTTP_POST;
+    req.method = HTTP_GET;
     req.url = CONFIG_CLOUD_PUBLISH_PATH;
     req.host = CONFIG_CLOUD_HOSTNAME;
     // req.port = CONFIG_CLOUD_PORT;
     req.protocol = "HTTP/1.1";
-    req.payload = msg;
-    req.payload_len = strlen(msg);
+    // req.payload = msg;
+    // req.payload_len = strlen(msg);
     req.response = response_cb;
     req.recv_buf = recv_buf_ipv4;
     req.recv_buf_len = sizeof(recv_buf_ipv4);
-    req.content_type_value = "application/json";
+    // req.content_type_value = "application/json";
     req.header_fields = (const char **)headers;
 
     LOG_INF("request done, making request");
