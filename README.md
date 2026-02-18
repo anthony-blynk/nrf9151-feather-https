@@ -23,7 +23,6 @@ It will then start installing and initializing things which can take a while, at
 [notice] To update, run: python.exe -m pip install --upgrade pip
  *  Terminal will be reused by tasks, press any key to close it. 
  ```
- but its still doing things so wait ...
 
 4) Clone the Blynk sample into the ```nfed\samples``` directory:
 ```
@@ -37,19 +36,21 @@ Receiving objects: 100% (29/29), 9.00 KiB | 460.00 KiB/s, done.
 Resolving deltas: 100% (7/7), done.
 ```
 
-5) In the Project Settings on the left set the Board and Project:
+5) In the top of file ```prj.conf``` set your Blynk Server and Auth Token
+
+6) In the Project Settings on the left set the Board and Project:
 - The Board should be circuitdojo_feather_nrf9151/nrf9151/ns 
 - The Project is the repo you just cloned, eg c:\nRF91Sdk\nfed\samples\blynk_https
 
-6) In Quick Actions click Build.
+7) In Quick Actions click Build.
 
 This is also slow and takes about 10 minutes for the first build, subsequent ones can be faster.
 
-7) Plug in your Feather USB cable and in Quick Actions click Flash.
+8) Plug in your Feather USB cable and in Quick Actions click Flash.
 
 - choose the target chip: nRF9151_xxAA
 
-8) Click Monitor, if you're slow and miss the initial messages press the reset button on the Feather to see from the begining
+9) Click Monitor, if you're slow and miss the initial messages press the reset button on the Feather to see from the begining
 
 
 
