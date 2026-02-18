@@ -77,7 +77,7 @@ int tls_setup(int fd)
         return err;
     }
 
-    err = setsockopt(fd, SOL_TLS, TLS_HOSTNAME, CONFIG_CLOUD_HOSTNAME, sizeof(CONFIG_CLOUD_HOSTNAME) - 1);
+    err = setsockopt(fd, SOL_TLS, TLS_HOSTNAME, CONFIG_BLYNK_SERVER, sizeof(CONFIG_BLYNK_SERVER) - 1);
     if (err)
     {
         err = -errno;
@@ -122,15 +122,15 @@ static int socket_setup()
             .ai_socktype = SOCK_STREAM,
         };
 
-    LOG_INF("Looking up %s", CONFIG_CLOUD_HOSTNAME);
-    err = getaddrinfo(CONFIG_CLOUD_HOSTNAME, NULL, &hints, &res);
+    LOG_INF("Looking up %s", CONFIG_BLYNK_SERVER);
+    err = getaddrinfo(CONFIG_BLYNK_SERVER, NULL, &hints, &res);
     if (err)
     {
         LOG_ERR("getaddrinfo() failed. Err: %i", errno);
         return err;
     }
 
-    ((struct sockaddr_in *)res->ai_addr)->sin_port = htons(CONFIG_CLOUD_PORT);
+    ((struct sockaddr_in *)res->ai_addr)->sin_port = htons(443);
 
     /* Create it */
     fd = socket(res->ai_family, SOCK_STREAM, IPPROTO_TLS_1_2);
@@ -205,7 +205,7 @@ clean_up:
         return fd;
 }
 
-static void response_cb(struct http_response *rsp,
+static int response_cb(struct http_response *rsp,
                         enum http_final_call final_data,
                         void *user_data)
 {
@@ -215,29 +215,43 @@ static void response_cb(struct http_response *rsp,
     /* Check status */
     if (rsp->http_status_code != 200 && rsp->http_status_code != 201)
     {
-        return;
+        return -1;
     }
 
     if (final_data == HTTP_DATA_FINAL)
     {
         LOG_HEXDUMP_INF(rsp->recv_buf, rsp->recv_buf_len, "Response data");
 
-        if (!rsp->body_found)
-        {
-            LOG_ERR("Body not found");
-            return;
-        }
+        // if (!rsp->body_found)
+        // {
+        //     LOG_ERR("Body not found");
+        //     return;
+        // }
 
         /* TODO: Decode and do something! */
         /* Start of body is rsp->body_frag_start */
-        struct device_data data = {
-            .do_something = false,
-        };
+        // struct device_data data = {
+        //     .do_something = false,
+        // };
 
         /* Callback */
-        if (cloud_callback != NULL)
-            cloud_callback(&data);
+        // if (cloud_callback != NULL)
+            // cloud_callback(&data);
     }
+    return 0;
+}
+
+static int counter = 0;
+#define PATH_BUF_SIZE 128
+
+static void build_blynk_path(char *buf, size_t len)
+{
+    counter++;
+
+    snprintk(buf, len,
+             "/external/api/update?token=%s&V1=%d",
+             CONFIG_BLYNK_AUTH_TOKEN,
+             counter);
 }
 
 int cloud_publish(struct device_data *data)
@@ -246,32 +260,10 @@ int cloud_publish(struct device_data *data)
     int ret = 0;
     uint8_t recv_buf_ipv4[256] = {0};
 
-    LOG_INF("Publish path: %s%s", CONFIG_CLOUD_HOSTNAME, CONFIG_CLOUD_PUBLISH_PATH);
-
-    /* Create JSON */
-    cJSON *obj = cJSON_CreateObject();
-
-    cJSON_AddBoolToObject(obj, "do_something", data->do_something);
-
-    char *msg = cJSON_PrintUnformatted(obj);
-    cJSON_Delete(obj);
-
-    if (msg == NULL)
-    {
-        LOG_ERR("Unable to encode JSON");
-        return -ENOMEM;
-    }
-    else
-    {
-        LOG_INF("Payload: %s", msg);
-    }
-
     /* Setup socket */
     fd = socket_setup();
     if (fd < 0)
     {
-        cJSON_free(msg);
-
         LOG_ERR("Unable to setup socket. Err: %i", fd);
         return fd;
     }
@@ -281,28 +273,26 @@ int cloud_publish(struct device_data *data)
     /* POST */
     struct http_request req = {0};
 
-    // memset(&req, 0, sizeof(req));
-
     /* Don't keep connection open.. */
     char *const headers[] = {
         "Connection: close\r\n",
         NULL};
 
+    char path[PATH_BUF_SIZE];
+    build_blynk_path(path, sizeof(path));
+    LOG_INF("Publish path: %s%s", CONFIG_BLYNK_SERVER, path);
+
     // req.method = HTTP_POST;
     req.method = HTTP_GET;
-    req.url = CONFIG_CLOUD_PUBLISH_PATH;
-    req.host = CONFIG_CLOUD_HOSTNAME;
-    // req.port = CONFIG_CLOUD_PORT;
+    req.url = path;
+    req.host = CONFIG_BLYNK_SERVER;
     req.protocol = "HTTP/1.1";
-    // req.payload = msg;
-    // req.payload_len = strlen(msg);
     req.response = response_cb;
     req.recv_buf = recv_buf_ipv4;
     req.recv_buf_len = sizeof(recv_buf_ipv4);
-    // req.content_type_value = "application/json";
     req.header_fields = (const char **)headers;
 
-    LOG_INF("request done, making request");
+    LOG_INF("request configured, making request");
 
     ret = http_client_req(fd, &req, timeout, NULL);
     if (ret < 0)
@@ -316,11 +306,7 @@ int cloud_publish(struct device_data *data)
         (void)close(fd);
     }
 
-    /* Free data */
-    cJSON_free(msg);
-
     LOG_INF("Data sent to cloud");
-
     return 0;
 }
 
