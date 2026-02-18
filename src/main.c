@@ -17,6 +17,11 @@ LOG_MODULE_REGISTER(main);
 /* Local */
 #include "cloud/cloud.h"
 
+BUILD_ASSERT(sizeof(CONFIG_BLYNK_SERVER) > 1,
+             "CONFIG_BLYNK_SERVER must be set (e.g. \"lon1.blynk.cloud\")");
+BUILD_ASSERT(sizeof(CONFIG_BLYNK_AUTH_TOKEN) > 1,
+             "CONFIG_BLYNK_AUTH_TOKEN must be set");
+
 /* Timer */
 static void timeout_handler(struct k_timer *timer_id);
 K_TIMER_DEFINE(timer, timeout_handler, NULL);
